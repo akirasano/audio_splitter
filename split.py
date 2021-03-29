@@ -28,7 +28,6 @@ def play(data, dur=-1):
     else:
         po.wait_done()
 
-
 def print_info(data):
     """Print information of pydub.AudioSegmentの情報をprintする
 
@@ -82,24 +81,25 @@ def combine_to_audiosegment(ln, rn, base):
     return base._spawn(sa)
 
 
-data = AudioSegment.from_file('20200531_ですよ.m4a')
+if __name__ == '__main__':
+    data = AudioSegment.from_file('20200531_ですよ.m4a')
 
-print_info(data)
+    print_info(data)
 
-# 5秒再生
-play(data, 5)
+    # 5秒再生
+    play(data, 5)
 
-# チャネルを分けて、numpyに変換
-ln, rn = split_to_mono_numpy(data)
+    # チャネルを分けて、numpyに変換
+    ln, rn = split_to_mono_numpy(data)
 
-# 最初5秒カット
-skip = 5
-skip_frames = skip * data.frame_rate # 5s * 48KHz
-ln = ln[skip_frames:] # l, r それぞれ処理
-rn = rn[skip_frames:]
+    # 最初5秒カット
+    skip = 5
+    skip_frames = skip * data.frame_rate # 5s * 48KHz
+    ln = ln[skip_frames:] # l, r それぞれ処理
+    rn = rn[skip_frames:]
 
-# l, rのndarrayをAudioSegmentに変換
-new_data = combine_to_audiosegment(ln, rn, data)
+    # l, rのndarrayをAudioSegmentに変換
+    new_data = combine_to_audiosegment(ln, rn, data)
 
-# 5秒再生
-play(new_data, 5)
+    # 5秒再生
+    play(new_data, 5)
