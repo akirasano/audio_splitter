@@ -45,7 +45,7 @@ def correlation(data: np.ndarray, tmpl: np.ndarray):
 
     procs = [delayed(calc_cross_correlation)(data, tmpl, s) for s in range(ns)]
 
-    return Parallel(n_jobs=-1, verbose=10, batch_size=1024)(procs)
+    return Parallel(n_jobs=-1, batch_size=1024)(procs)
 
 
 def calc_correlation_pyramid(

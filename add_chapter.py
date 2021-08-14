@@ -38,19 +38,7 @@ def write_meta(out, marker_times_ms, end_time_ms):
             )
 
 
-if __name__ == '__main__':
-
-    src = '20210813_Turn.m4a'
-    dst = os.path.splitext(os.path.basename(src))[0] + '.m4b'
-    meta_file = 'tmp_meta.txt'
-
-    markers = [
-        'Turn_jingle_01.wav',
-        'Turn_jingle_02.wav',
-        'Turn_jingle_03.wav',
-        'Turn_jingle_04.wav',
-    ]
-
+def add_chapter(src, dst, markers, level=1024):
     chapter_indices = []
 
     def normalize(v):
@@ -61,8 +49,6 @@ if __name__ == '__main__':
     audio_data = AudioSegment.from_file(src)
     wave_lch = split_to_mono_numpy(audio_data)[0]
     wave_lch = normalize(wave_lch)
-
-    level = 1024
 
     last_sample_pos = 0
     for m in tqdm(markers):
@@ -103,3 +89,19 @@ if __name__ == '__main__':
          '-ar', '44.1k',
          dst]
     )
+
+
+if __name__ == '__main__':
+
+    src = '20210813_Turn.m4a'
+    dst = os.path.splitext(os.path.basename(src))[0] + '.m4b'
+    meta_file = 'tmp_meta.txt'
+
+    markers = [
+        'Turn_jingle_01.wav',
+        'Turn_jingle_02.wav',
+        'Turn_jingle_03.wav',
+        'Turn_jingle_04.wav',
+    ]
+
+    add_chapter(src, dst, markers)
