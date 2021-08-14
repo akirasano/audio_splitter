@@ -95,7 +95,8 @@ def calc_correlation_pyramid(
 if __name__ == '__main__':
     dsound = AudioSegment.from_file('20210813_Turn.wav')
     sound = split.split_to_mono_numpy(dsound)[0]
-    dtemplate = AudioSegment.from_file('Turn_jingle_02.wav')
+    # dtemplate = AudioSegment.from_file('Turn_jingle_02.wav')
+    dtemplate = AudioSegment.from_file('20200531_ですよ.m4a')
     template = split.split_to_mono_numpy(dtemplate)[0]
 
     from scipy import signal

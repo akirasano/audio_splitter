@@ -53,6 +53,7 @@ if __name__ == '__main__':
 
     chapter_indices = []
 
+    # avconvがあるとffmpegよりも優先して使う
     audio_data = AudioSegment.from_file(src)
     wave_lch = split_to_mono_numpy(audio_data)[0]
 
@@ -79,11 +80,19 @@ if __name__ == '__main__':
     write_meta(meta_file, marker_times_ms,
                len(wave_lch) // audio_data.frame_rate * 1000)
 
+    #  '-acodec', 'copy',
+    # 48kのファイルはQuicktimeやbookでうまく再生できないので
+    # 44.1にリサンプルする
     ret = subprocess.run(
         ['ffmpeg',
+         '-y,'
          '-i', src,
          '-i', meta_file,
          '-map_chapters', '1',
-         '-acodec', 'copy',
+         '-acodec', 'libfdk_aac',
+         '-profile:a', 'aac_he_v2',
+         #  '-ab', '48k',
+         '-ab', '32k',
+         '-ar', '44.1k',
          dst]
     )
