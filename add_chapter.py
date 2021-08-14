@@ -53,21 +53,28 @@ if __name__ == '__main__':
 
     chapter_indices = []
 
+    def normalize(v):
+        v = v.astype(float)
+        return 2 * (v - v.min()) / (v.max() - v.min()) - 1
+
     # avconvがあるとffmpegよりも優先して使う
     audio_data = AudioSegment.from_file(src)
     wave_lch = split_to_mono_numpy(audio_data)[0]
+    wave_lch = normalize(wave_lch)
 
     level = 1024
 
     last_sample_pos = 0
     for m in tqdm(markers):
         marker_data = AudioSegment.from_file(m)
+        assert(marker_data.frame_rate == audio_data.frame_rate)
         marker_wave_lch = split_to_mono_numpy(marker_data)[0]
+        marker_wave_lch = normalize(marker_wave_lch)
 
         coeff = calc_correlation_pyramid(wave_lch, marker_wave_lch, level)
         args = np.argsort(coeff)
         for j in range(args.size):
-            sample_pos = args[j] * level
+            sample_pos = args[-1-j] * level
             if sample_pos > last_sample_pos:
                 chapter_indices.append(sample_pos)
                 last_sample_pos = sample_pos
@@ -85,7 +92,7 @@ if __name__ == '__main__':
     # 44.1にリサンプルする
     ret = subprocess.run(
         ['ffmpeg',
-         '-y,'
+         '-y',
          '-i', src,
          '-i', meta_file,
          '-map_chapters', '1',
