@@ -45,7 +45,7 @@ def correlation(data: np.ndarray, tmpl: np.ndarray):
 
     procs = [delayed(calc_cross_correlation)(data, tmpl, s) for s in range(ns)]
 
-    return Parallel(n_jobs=-1, batch_size=1024)(procs)
+    return Parallel(n_jobs=-1, verbose=10, batch_size=1024)(procs)
 
 
 def calc_correlation_pyramid(
@@ -60,13 +60,12 @@ def calc_correlation_pyramid(
 if __name__ == '__main__':
     import os
     markers = [
-        'Turn_jingle_01.wav',
-        'Turn_jingle_02.wav',
-        'Turn_jingle_03.wav',
-        'Turn_jingle_04.wav',
+        os.path.join(
+            'markers', 'Audrey', f'{i+1:02d}.wav')
+        for i in range(8)
     ]
+    dsound = AudioSegment.from_file('20210808_Audrey.m4a')
     for tmpl_filename in markers:
-        dsound = AudioSegment.from_file('20210813_Turn.wav')
         sound = split.split_to_mono_numpy(dsound)[0]
         dtemplate = AudioSegment.from_file(tmpl_filename)
         template = split.split_to_mono_numpy(dtemplate)[0]
@@ -101,7 +100,7 @@ if __name__ == '__main__':
             ax[ai].plot(x, coeff, label=f'{l}', alpha=0.5)
 
             args = np.argsort(coeff)
-            for j in range(5):
+            for j in range(1):
                 amax = args[-1-j]
                 # if amax > 100:
                 # ax[ai].plot([x[amax], x[amax]], ax[ai].get_ylim(),
@@ -129,6 +128,9 @@ if __name__ == '__main__':
             a.grid()
             a.legend(loc='lower left')
         fig.tight_layout()
-        figout = 'match_test_' + os.path.splitext(tmpl_filename)[0] + '.png'
+        figout = 'match_test_' + \
+            os.path.splitext(
+                os.path.basename(tmpl_filename))[0] + '.png'
+
         fig.savefig(figout)
         plt.close(fig)

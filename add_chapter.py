@@ -1,6 +1,9 @@
+import sys
 import os
+from glob import glob
 import numpy as np
 import subprocess
+from numpy.core.numeric import indices
 from tqdm import tqdm
 from pydub import AudioSegment
 from split import split_to_mono_numpy
@@ -38,26 +41,61 @@ def write_meta(out, marker_times_ms, end_time_ms):
             )
 
 
-def add_chapter(src, dst, markers, level=1024):
-    chapter_indices = []
+def make_figure(figout, audio_data, coeffs, cindices, l):
+    import matplotlib.pyplot as plt
 
+    cmap = plt.get_cmap('tab10')
+
+    audio = split_to_mono_numpy(audio_data)[0]
+    nr = len(coeffs) + 1
+
+    fig, ax = plt.subplots(nr, 1, figsize=(8, nr*2))
+
+    t = np.arange(audio.size) / audio_data.frame_rate
+    ax[0].plot(t, audio, color='gray', alpha=0.5)
+
+    ly0 = ax[0].get_ylim()
+    for i, (coeff, idx) in enumerate(zip(coeffs, cindices)):
+        ai = i + 1
+
+        x = np.arange(coeff.size) / audio_data.frame_rate * l
+        ax[ai].plot(x, coeff, label=f'{i}', alpha=0.5)
+
+        ax[0].annotate(
+            f'{i}', xy=(t[idx], 0),
+            xytext=(t[idx], ly0[1]),
+            arrowprops=dict(arrowstyle='->', color=cmap(i))
+        )
+
+    for a in ax.flat:
+        a.grid()
+        a.legend(loc='lower left')
+
+    fig.tight_layout()
+    fig.savefig(figout)
+    plt.close(fig)
+
+
+def calc_marker_position(wave_lch, frame_rate, level, markers):
     def normalize(v):
         v = v.astype(float)
         return 2 * (v - v.min()) / (v.max() - v.min()) - 1
 
-    # avconvがあるとffmpegよりも優先して使う
-    audio_data = AudioSegment.from_file(src)
-    wave_lch = split_to_mono_numpy(audio_data)[0]
     wave_lch = normalize(wave_lch)
+
+    chapter_indices = []
+    coeffs = []
 
     last_sample_pos = 0
     for m in tqdm(markers):
         marker_data = AudioSegment.from_file(m)
-        assert(marker_data.frame_rate == audio_data.frame_rate)
+        assert(marker_data.frame_rate == frame_rate)
         marker_wave_lch = split_to_mono_numpy(marker_data)[0]
         marker_wave_lch = normalize(marker_wave_lch)
 
-        coeff = calc_correlation_pyramid(wave_lch, marker_wave_lch, level)
+        coeff = calc_correlation_pyramid(
+            wave_lch, marker_wave_lch, level)
+        coeffs.append(coeff)
         args = np.argsort(coeff)
         for j in range(args.size):
             sample_pos = args[-1-j] * level
@@ -67,11 +105,32 @@ def add_chapter(src, dst, markers, level=1024):
                 break
 
     marker_times_ms = [0] + [
-        int(i / audio_data.frame_rate * 1000)
+        int(i / frame_rate * 1000)
         for i in chapter_indices
     ]
+
+    return marker_times_ms, coeffs, chapter_indices
+
+
+def add_chapter(src, dst, meta_file, markers, level=256):
+
+    audio_data = AudioSegment.from_file(src)
+    wave_lch = split_to_mono_numpy(audio_data)[0]
+
+    marker_times_ms, coeffs, chapter_indices = \
+        calc_marker_position(
+            wave_lch, audio_data.frame_rate,
+            level, markers)
+
+    # avconvがあるとffmpegよりも優先して使う
     write_meta(meta_file, marker_times_ms,
                len(wave_lch) // audio_data.frame_rate * 1000)
+
+    if True:
+        base = os.path.splitext(os.path.basename(src))[0]
+        make_figure(
+            os.path.join(base, 'match.png'),
+            audio_data, coeffs, chapter_indices, level)
 
     #  '-acodec', 'copy',
     # 48kのファイルはQuicktimeやbookでうまく再生できないので
@@ -90,18 +149,29 @@ def add_chapter(src, dst, markers, level=1024):
          dst]
     )
 
+    return audio_data, coeffs, chapter_indices
+
+
+def show_params(**kwargs):
+    for k, v in kwargs.items():
+        print(f'{k:12s}: {v}')
+
 
 if __name__ == '__main__':
 
-    src = '20210813_Turn.m4a'
-    dst = os.path.splitext(os.path.basename(src))[0] + '.m4b'
-    meta_file = 'tmp_meta.txt'
+    src = sys.argv[1]
+    title = src.split('_')[-1].split('.')[0]
+    marker_dir = os.path.join('markers', title)
 
-    markers = [
-        'Turn_jingle_01.wav',
-        'Turn_jingle_02.wav',
-        'Turn_jingle_03.wav',
-        'Turn_jingle_04.wav',
-    ]
+    base = os.path.splitext(os.path.basename(src))[0]
+    os.makedirs(base, exist_ok=True)
+    dst = os.path.join(base, base + '.m4b')
+    meta_file = os.path.join(base, 'meta.txt')
 
-    add_chapter(src, dst, markers)
+    show_params(src=src, title=title, base=base,
+                dst=dst, meta_file=meta_file, marker_dir=marker_dir)
+
+    markers = sorted(list(glob(os.path.join(marker_dir, '*.wav'))))
+    print(markers)
+
+    add_chapter(src, dst, meta_file, markers, level=256)
